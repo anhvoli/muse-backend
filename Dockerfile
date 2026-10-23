@@ -1,42 +1,26 @@
-# ==========================================
-# STAGE 1: Build Go Backend
-# ==========================================
-FROM golang:1.23-bookworm AS backend-builder
+FROM golang:1.23-bookworm
+
 WORKDIR /app
 
+# Cài đặt đầy đủ các thư viện C/X11/OpenGL cần thiết
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-dev \
     xorg-dev \
     gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY . .
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o /app/server .
-
-# ==========================================
-# STAGE 2: Production Runtime
-# ==========================================
-FROM debian:bookworm-slim
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
-    libgl1 \
-    libx11-6 \
-    libxcursor1 \
-    libxrandr2 \
-    libxinerama1 \
-    libxi6 \
-    libxxf86vm1 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=backend-builder /app/server /app/server
+# Copy và tải dependencies
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Tạo thư mục dữ liệu
+# Copy mã nguồn và biên dịch binary Go
+COPY . .
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o /app/server .
+RUN chmod +x /app/server
+
+# Tạo các thư mục lưu trữ dữ liệu
 RUN mkdir -p /app/selfies /app/parsers
 
 ENV PORT=8088

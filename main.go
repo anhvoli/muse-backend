@@ -915,6 +915,9 @@ func appendAPILog(format string, args ...interface{}) {
 	timestamp := time.Now().Format("15:04:05")
 	line := fmt.Sprintf("[%s] %s", timestamp, msg)
 
+	// In ra terminal để xem log trên Docker / Back4app / Cloud
+	log.Println(line)
+
 	apiLogsMu.Lock()
 	apiLogs = append(apiLogs, line)
 	if len(apiLogs) > 200 {
@@ -1537,6 +1540,14 @@ func startAPIServer(port string, w fyne.Window) error {
 	// Đăng ký API Kho Ảnh Selfie
 	registerSelfieAPIRoutes(mux, setCors)
 
+	// Endpoint Healthcheck cho Back4app / Cloud Platforms
+	mux.HandleFunc("/health", func(rw http.ResponseWriter, r *http.Request) {
+		setCors(rw)
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte(`{"status":"healthy","uptime":"ok"}`))
+	})
+
 	// Phục vụ Giao diện Web React Frontend (nếu đã build trong thư mục frontend/dist)
 	frontendDist := filepath.Join(".", "frontend", "dist")
 	mux.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
@@ -1567,9 +1578,11 @@ func startAPIServer(port string, w fyne.Window) error {
 			return
 		}
 
-		// Nếu chưa build React Frontend thì chuyển hướng sang tài liệu API
+		// Nếu là root "/" và chưa có frontend dist: Trả về 200 OK để Back4app Healthcheck thành công
 		if r.URL.Path == "/" {
-			http.Redirect(rw, r, "/api/document", http.StatusTemporaryRedirect)
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(http.StatusOK)
+			rw.Write([]byte(`{"status":"healthy","app":"Gmail Hub & Selfie Vault API","docs":"/api/document"}`))
 			return
 		}
 		http.NotFound(rw, r)
