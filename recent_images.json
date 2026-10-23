@@ -1,0 +1,29 @@
+[
+  {
+    "sessionId": "miumiu-quynhnhu-20261023",
+    "name": "Đăng ký muse.ai — quynhnhu@atomicmail.ai (run_fast)",
+    "step": 4,
+    "message": "Bước 4/7: Đã nộp ngày sinh 11/12/1988",
+    "timestamp": "12:04:28",
+    "path": "session_images\\miumiu-quynhnhu-20261023_step4.jpg",
+    "imageUrl": "/api/session/image?id=miumiu-quynhnhu-20261023"
+  },
+  {
+    "sessionId": "miumiu-quynhnhu-20261023",
+    "name": "Đăng ký muse.ai — quynhnhu@atomicmail.ai (run_fast)",
+    "step": 2,
+    "message": "Bước 2/7: Đã bấm Continue, trang nhập mã hiện ra",
+    "timestamp": "12:03:38",
+    "path": "session_images\\miumiu-quynhnhu-20261023_step2.jpg",
+    "imageUrl": "/api/session/image?id=miumiu-quynhnhu-20261023"
+  },
+  {
+    "sessionId": "miumiu-quynhnhu-20261023",
+    "name": "Đăng ký muse.ai — quynhnhu@atomicmail.ai (run_fast)",
+    "step": 1,
+    "message": "Bước 1/7: Đã nhập Gmail vào muse.ai",
+    "timestamp": "12:03:31",
+    "path": "session_images\\miumiu-quynhnhu-20261023_step1.jpg",
+    "imageUrl": "/api/session/image?id=miumiu-quynhnhu-20261023"
+  }
+]

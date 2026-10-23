@@ -1,0 +1,17 @@
+services:
+  gmail-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gmail-react-server
+    restart: always
+    ports:
+      - "8088:8088"
+    environment:
+      - PORT=8088
+      - HEADLESS=true
+    volumes:
+      # Giữ lại danh sách tài khoản Gmail và kho ảnh Selfie trên host
+      - ./accounts.json:/app/accounts.json
+      - ./selfies:/app/selfies
+      - ./parsers:/app/parsers

@@ -1,0 +1,44 @@
+# Binaries & Executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+server
+GmailApp
+
+# Sensitive Data (Bảo mật tài khoản Gmail)
+accounts.json
+*.env
+*.env.local
+
+# Frontend folder (Repo Backend độc lập)
+frontend/
+
+# Node.js dependencies
+frontend/node_modules/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs & Temporary files
+*.log
+tmp/
+.temp/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Tool binaries
+cloudflared.exe
+cloudflared
+
+# Keep directory structure for selfies but ignore user uploaded photos if needed
+# (Bỏ comment dòng dưới nếu không muốn đẩy ảnh selfie cá nhân lên repo)
+# selfies/*
+# !selfies/.gitkeep

@@ -1,0 +1,68 @@
+stages:
+  - test
+  - build-docker
+  - deploy
+
+variables:
+  DOCKER_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  DOCKER_IMAGE_LATEST: $CI_REGISTRY_IMAGE:latest
+
+# 1. Stage Test / Lint (Kiểm tra build Frontend & Go)
+lint_and_build_test:
+  stage: test
+  image: golang:1.23-bookworm
+  before_script:
+    - apt-get update && apt-get install -y nodejs npm libgl1-mesa-dev xorg-dev
+  script:
+    # Test build Frontend
+    - cd frontend
+    - npm ci || npm install
+    - npm run build
+    - cd ..
+    # Test build Go
+    - go mod tidy
+    - go build -v .
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# 2. Stage Build Docker Image và đẩy lên GitLab Container Registry
+build_docker_image:
+  stage: build-docker
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Đang build Docker Image từ Dockerfile..."
+    - docker build -t $DOCKER_IMAGE -t $DOCKER_IMAGE_LATEST .
+    - docker push $DOCKER_IMAGE
+    - docker push $DOCKER_IMAGE_LATEST
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# 3. Stage Deploy tự động lên VPS qua SSH (Tùy chọn khi cấu hình biến VPS)
+deploy_to_vps:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - which ssh-agent || ( apk update && apk add --no-cache openssh-client )
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts || true
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - echo "Deploying to VPS: $VPS_IP ..."
+    - ssh $VPS_USER@$VPS_IP "
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
+        docker pull $DOCKER_IMAGE_LATEST &&
+        docker stop gmail-app || true &&
+        docker rm gmail-app || true &&
+        docker run -d --name gmail-app --restart always -p 8088:8088 -v /opt/gmail-data/accounts.json:/app/accounts.json -v /opt/gmail-data/selfies:/app/selfies $DOCKER_IMAGE_LATEST
+      "
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $SSH_PRIVATE_KEY && $VPS_IP
+  when: manual # Để người dùng chủ động bấm Deploy hoặc đổi thành on_success
