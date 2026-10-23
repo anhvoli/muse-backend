@@ -1085,6 +1085,147 @@ func startAPIServer(port string, w fyne.Window) error {
 		json.NewEncoder(rw).Encode(emailList)
 	})
 
+	// POST /api/addaccount -> Thêm hoặc cập nhật tài khoản Gmail
+	handleAddAccount := func(rw http.ResponseWriter, r *http.Request) {
+		setCors(rw)
+		if r.Method == http.MethodOptions {
+			rw.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != http.MethodPost {
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(rw).Encode(map[string]string{"error": "Chỉ chấp nhận phương thức POST"})
+			return
+		}
+
+		var payload struct {
+			Email       string `json:"email"`
+			AppPassword string `json:"appPassword"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			rw.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(rw).Encode(map[string]string{"error": "Dữ liệu JSON không hợp lệ"})
+			return
+		}
+
+		email := strings.TrimSpace(payload.Email)
+		pass := strings.TrimSpace(payload.AppPassword)
+
+		if email == "" || pass == "" {
+			rw.WriteHeader(http.StatusBadRequest)
+			rw.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(rw).Encode(map[string]string{"error": "Vui lòng nhập đầy đủ Email và Mật khẩu ứng dụng 16 ký tự"})
+			return
+		}
+
+		mu.Lock()
+		updated := false
+		for i, acc := range accounts {
+			if strings.EqualFold(acc.Email, email) {
+				accounts[i].AppPassword = pass
+				updated = true
+				break
+			}
+		}
+
+		if !updated {
+			accounts = append(accounts, Account{
+				Email:       email,
+				AppPassword: pass,
+			})
+		}
+
+		saveAccounts()
+		if accListWidget != nil {
+			accListWidget.Refresh()
+		}
+		mu.Unlock()
+
+		appendAPILog("✔ Đã lưu tài khoản Gmail qua API: %s", email)
+		rw.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(map[string]interface{}{
+			"success": true,
+			"message": "Đã lưu tài khoản thành công",
+			"email":   email,
+			"updated": updated,
+		})
+	}
+
+	mux.HandleFunc("/api/addaccount", handleAddAccount)
+
+	// DELETE hoặc POST /api/account
+	mux.HandleFunc("/api/account", func(rw http.ResponseWriter, r *http.Request) {
+		setCors(rw)
+		if r.Method == http.MethodOptions {
+			rw.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			handleAddAccount(rw, r)
+			return
+		}
+
+		if r.Method == http.MethodDelete {
+			email := strings.TrimSpace(r.URL.Query().Get("email"))
+			if email == "" {
+				var bodyPayload struct {
+					Email string `json:"email"`
+				}
+				_ = json.NewDecoder(r.Body).Decode(&bodyPayload)
+				email = strings.TrimSpace(bodyPayload.Email)
+			}
+
+			if email == "" {
+				rw.WriteHeader(http.StatusBadRequest)
+				rw.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(rw).Encode(map[string]string{"error": "Thiếu tham số 'email'"})
+				return
+			}
+
+			mu.Lock()
+			newAccounts := make([]Account, 0, len(accounts))
+			found := false
+			for _, acc := range accounts {
+				if strings.EqualFold(acc.Email, email) {
+					found = true
+					continue
+				}
+				newAccounts = append(newAccounts, acc)
+			}
+
+			if !found {
+				mu.Unlock()
+				rw.WriteHeader(http.StatusNotFound)
+				rw.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(rw).Encode(map[string]string{"error": "Không tìm thấy tài khoản để xóa"})
+				return
+			}
+
+			accounts = newAccounts
+			saveAccounts()
+			if accListWidget != nil {
+				accListWidget.Refresh()
+			}
+			mu.Unlock()
+
+			appendAPILog("🗑 Đã xóa tài khoản Gmail qua API: %s", email)
+			rw.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(rw).Encode(map[string]interface{}{
+				"success": true,
+				"message": "Đã xóa tài khoản thành công",
+				"email":   email,
+			})
+			return
+		}
+
+		rw.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(map[string]string{"status": "ok"})
+	})
+
 	// 2. /api/getemail -> Nhận data là địa chỉ email để đọc các email của tài khoản đó
 	mux.HandleFunc("/api/getemail", func(rw http.ResponseWriter, r *http.Request) {
 		setCors(rw)
